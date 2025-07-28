@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>サイコロゲーム（カード付き）</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; margin: 40px; }
+    img.dice { width: 80px; vertical-align: middle; }
+    .score, .cards, .status { margin: 10px; font-size: 20px; }
+    button { padding: 10px 20px; font-size: 16px; margin: 5px; }
+    #result { font-weight: bold; margin-top: 20px; font-size: 22px; }
+    .card-list { margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+<h1>🎲 サイコロ対決ゲーム（カード付き）🎴</h1>
+
+<div class="score">あなたのスコア：<span id="playerScore">0</span></div>
+<div class="score">CPUのスコア：<span id="cpuScore">0</span></div>
+
+<div class="cards">
+  <div>CPUの使うカード：<span id="cpuCard">未選択</span></div>
+  <div>あなたの手札：
+    <span id="playerCards"></span>
+  </div>
+</div>
+
+<div class="card-list" id="cardButtons"></div>
+
+<div class="dice">
+  あなた <img id="playerDice" class="dice" src="" alt=""> vs
+  <img id="cpuDice" class="dice" src="" alt=""> CPU
+</div>
+
+<button id="rollButton" disabled>サイコロを振る</button>
+<div id="result" class="status"></div>
+
+<script>
+  const diceImages = [
+    "", // 0 index unused
+    "https://upload.wikimedia.org/wikipedia/commons/1/1b/Dice-1-b.svg",
+    "https://upload.wikimedia.org/wikipedia/commons/5/5f/Dice-2-b.svg",
+    "https://upload.wikimedia.org/wikipedia/commons/b/b1/Dice-3-b.svg",
+    "https://upload.wikimedia.org/wikipedia/commons/f/fd/Dice-4-b.svg",
+    "https://upload.wikimedia.org/wikipedia/commons/0/08/Dice-5-b.svg",
+    "https://upload.wikimedia.org/wikipedia/commons/2/26/Dice-6-b.svg"
+  ];
+
+  let playerScore = 0;
+  let cpuScore = 0;
+
+  const playerDiceImg = document.getElementById("playerDice");
+  const cpuDiceImg = document.getElementById("cpuDice");
+  const playerScoreEl = document.getElementById("playerScore");
+  const cpuScoreEl = document.getElementById("cpuScore");
+  const resultEl = document.getElementById("result");
+  const cpuCardEl = document.getElementById("cpuCard");
+  const playerCardsEl = document.getElementById("playerCards");
+  const cardButtonsEl = document.getElementById("cardButtons");
+  const rollButton = document.getElementById("rollButton");
+
+  let playerCards = [3, 5, 6]; // 例：「3が出るカード」など
+  let cpuCards = [2, 4, 6];
+  let cpuSelectedCard = null;
+  let playerSelectedCard = null;
+
+  function rollDice() {
+    return Math.floor(Math.random() * 6) + 1;
+  }
+
+  function updateScores() {
+    playerScoreEl.textContent = playerScore;
+    cpuScoreEl.textContent = cpuScore;
+  }
+
+  function updateCardDisplay() {
+    playerCardsEl.textContent = playerCards.map(n => `${n}が出る`).join(", ");
+  }
+
+  function selectCpuCard() {
+    // 確率50%で使う（カードが残っていれば）
+    if (cpuCards.length > 0 && Math.random() < 0.5) {
+      const idx = Math.floor(Math.random() * cpuCards.length);
+      cpuSelectedCard = cpuCards.splice(idx, 1)[0];
+      cpuCardEl.textContent = `${cpuSelectedCard}が出るカードを使用`;
+    } else {
+      cpuSelectedCard = null;
+      cpuCardEl.textContent = "使用しない";
+    }
+  }
+
+  function setupPlayerCardChoice() {
+    cardButtonsEl.innerHTML = "";
+
+    playerCards.forEach((value, idx) => {
+      const btn = document.createElement("button");
+      btn.textContent = `${value}が出るカードを使う`;
+      btn.onclick = () => {
+        playerSelectedCard = value;
+        playerCards.splice(idx, 1);
+        updateCardDisplay();
+        cardButtonsEl.innerHTML = "<em>カードを選択しました。</em>";
+        rollButton.disabled = false;
+      };
+      cardButtonsEl.appendChild(btn);
+    });
+
+    const skipBtn = document.createElement("button");
+    skipBtn.textContent = "使わない";
+    skipBtn.onclick = () => {
+      playerSelectedCard = null;
+      cardButtonsEl.innerHTML = "<em>カードを使いませんでした。</em>";
+      rollButton.disabled = false;
+    };
+    cardButtonsEl.appendChild(skipBtn);
+  }
+
+  function checkVictory() {
+    if (playerScore >= 5) {
+      resultEl.textContent = "🎉 あなたの勝ち！";
+      rollButton.disabled = true;
+    } else if (cpuScore >= 5) {
+      resultEl.textContent = "💻 CPUの勝ち！";
+      rollButton.disabled = true;
+    }
+  }
+
+  rollButton.addEventListener("click", () => {
+    const playerRoll = playerSelectedCard ?? rollDice();
+    const cpuRoll = cpuSelectedCard ?? rollDice();
+
+    playerDiceImg.src = diceImages[playerRoll];
+    cpuDiceImg.src = diceImages[cpuRoll];
+
+    // 特別ルール：1 vs 6 → 1が勝ち（2点）
+    if (playerRoll === 1 && cpuRoll === 6) {
+      playerScore += 2;
+      resultEl.textContent = "✨ 特別ルール発動！あなたが2点獲得！";
+    } else if (playerRoll === 6 && cpuRoll === 1) {
+      cpuScore += 2;
+      resultEl.textContent = "⚡ 特別ルール発動！CPUが2点獲得！";
+    } else if (playerRoll > cpuRoll) {
+      playerScore += 1;
+      resultEl.textContent = "あなたが1点獲得！";
+    } else if (cpuRoll > playerRoll) {
+      cpuScore += 1;
+      resultEl.textContent = "CPUが1点獲得！";
+    } else {
+      resultEl.textContent = "引き分け！";
+    }
+
+    updateScores();
+    checkVictory();
+
+    // 次ターン準備
+    playerSelectedCard = null;
+    cpuSelectedCard = null;
+    rollButton.disabled = true;
+    if (playerScore < 5 && cpuScore < 5) {
+      setTimeout(startTurn, 1000);
+    }
+  });
+
+  function startTurn() {
+    cpuCardEl.textContent = "選択中...";
+    resultEl.textContent = "";
+    selectCpuCard();
+    updateCardDisplay();
+    setupPlayerCardChoice();
+  }
+
+  // ゲーム開始
+  startTurn();
+</script>
+
+</body>
+</html>
